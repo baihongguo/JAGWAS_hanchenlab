@@ -33,7 +33,7 @@ missingness rather than Monte Carlo error.
 ## Requirements
 
 R (we used version 4.0.2) with the package data.table; Matrix and CompQuadForm are
-used when installed. `run_jagwas_null.sh` also needs the JAGWAS executable from this
+used when installed. The check in `06` also needs the JAGWAS executable from this
 repository.
 
 Every input and output path is a command-line option (`--name=value`). The defaults
@@ -45,14 +45,14 @@ its options.
 | Step | Script | What it does |
 |---|---|---|
 | Simulate | `00_check_correlation_matrix.R` | Checks R before simulating: eigenvalues, condition number, Li–Ji effective number of tests, and whether the log-normal correlation can be matched. |
-| | `01_simulate_null_phenotypes.R` | Simulates the phenotypes; replicate r uses seed 20260902 + r. `run_simulation.sbatch` runs it as a SLURM array, one task per replicate. |
+| | `01_simulate_null_phenotypes.R` | Simulates the phenotypes; replicate r uses seed 20260902 + r. All four scenarios of a replicate are written together; `--rep_start` and `--rep_end` split the replicates across jobs. |
 | | `02_validate_simulation.R` | Checks the simulated correlations, skewness, kurtosis and missingness. |
 | | `03_check_scenario_misspecification.R` | Checks whether the realized phenotype correlation alone would miscalibrate the test. |
 | GWAS | TorchGWAS (not included) | Single-phenotype association tests for each replicate. |
 | JAGWAS | `04_estimate_scenario_R.R` | Estimates R for each replicate as the sample correlation matrix of its simulated phenotypes (pairwise-complete in S4); `--keep` limits it to listed individuals. `--overlap_adjust=fill` writes the overlap-adjusted matrix G/N used for S4 in the paper (`drop` writes the version for GWAS software that drops missing values). |
 | | `08_check_layout.R` | Confirms the layout of the TorchGWAS output file. |
-| | `05_prepare_jagwas_input.R` | Writes the JAGWAS input files and computes T = z′R⁻¹z directly. `run_jagwas_null_direct.sh` runs it for all replicates. |
-| | `run_jagwas_null.sh`, `06_compare_jagwas_direct.R` | Run the JAGWAS executable on selected replicates and check that its p-values match the direct computation (done for replicate 1 of every scenario). Use the default `BETA_SE=1`: the input files give the t statistic as BETA with SE = 1. |
+| | `05_prepare_jagwas_input.R` | Writes the JAGWAS input files and computes T = z′R⁻¹z directly, for one scenario and a range of replicates (`--rep_start`, `--rep_end`). `--write_sumstats=false` skips the input files when only the direct statistic is needed. |
+| | `06_compare_jagwas_direct.R` | Checks that the JAGWAS executable gives the same p-values as the direct computation (done for replicate 1 of every scenario). Run `05` with `--save_direct_p=true`, run JAGWAS on its input files with `--beta_se 1 --logP 1` (the files give the t statistic as BETA with SE = 1) and save the output as `<outbase>/<scenario>/rep###.jagwas.txt.gz`. |
 | | `10_maf_class_pass.R` | Splits the statistics into common (MAF > 0.01) and rare (MAF ≤ 0.01) variants. |
 | | `12_trait_subsets.R` | The same test for nested random subsets of 64 and 16 phenotypes; replicate r uses seed 20261008 + r. |
 | | `13_minp_pass.R` | Bonferroni minP, min(1, k·p_min), and effective-tests minP, min(1, M_eff·p_min), on the same z-scores and subsets. |
